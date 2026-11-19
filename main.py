@@ -1,122 +1,115 @@
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
+import joblib
+
 warnings.filterwarnings("ignore")
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+# Load dataset
 df = pd.read_csv('insurance.csv')
-# print(df.head())
-# print(df.info())
-# print(df.describe())
-print(df.shape)
 
-# #Exploratory Data Analysis(EDA)
-# print(df.isnull().sum())
+print("Dataset Shape:", df.shape)
 
+# EDA
 numeric_columns = ['age', 'bmi', 'children', 'charges']
 
-# plt.figure(figsize=(10, 5))
-# sns.countplot(x = df['sex'])
-# plt.show()
-
-# sns.countplot(x = df['smoker'])
-# plt.show()
-
-# sns.countplot(x = df['region'])
-# plt.show()
-
-# for col in numeric_columns:
-#     plt.figure(figsize=(10, 5))
-#     sns.histplot(df[col], kde=True, bins=20)
-#     plt.show()
-
-# for col in numeric_columns:
-#     plt.figure(figsize=(10, 5))
-#     sns.boxplot(x = df[col])
-#     plt.show()
-
-# plt.figure(figsize=(10, 5))
-# sns.heatmap(df.corr(numeric_only=True), annot=True)
-# plt.show()
-
-#Data Cleaning and Preprocessing
-
+# Data Cleaning
 df_cleaned = df.copy()
-
 df_cleaned.drop_duplicates(inplace=True)
-# print(df_cleaned.shape)
+df_cleaned.dropna(inplace=True)
 
-# print(df_cleaned['sex'].value_counts())
+# Encoding categorical variables
+df_cleaned['sex'] = df_cleaned['sex'].map({
+    'male': 0,
+    'female': 1
+})
 
-#Encoding categorical variables
+df_cleaned['smoker'] = df_cleaned['smoker'].map({
+    'no': 0,
+    'yes': 1
+})
 
-df_cleaned['sex'] = df_cleaned['sex'].map({'male': 0, 'female': 1})
-# print(df_cleaned.head())
+df_cleaned.rename(
+    columns={
+        'sex': 'is_female',
+        'smoker': 'is_smoker'
+    },
+    inplace=True
+)
 
-df_cleaned['smoker'] = df_cleaned['smoker'].map({'no':0,'yes':1})
-# print(df_cleaned.head())
+# Feature Engineering
+df_cleaned['bmi_category'] = pd.cut(
+    df_cleaned['bmi'],
+    bins=[0, 18.5, 24.9, 29.9, float('inf')],
+    labels=['Underweight', 'Normal', 'Overweight', 'Obese']
+)
 
-df_cleaned.rename(columns={'sex':'is_female', 'smoker':'is_smoker'}, inplace=True)
-# print(df_cleaned.head())
+# Select final features (region removed)
+final_df = df_cleaned[
+    ['age', 'is_female', 'bmi', 'children', 'is_smoker', 'charges']
+].copy()
 
-# print(df_cleaned['region'].value_counts())
+X = final_df.drop('charges', axis=1)
+y = final_df['charges']
 
-#One-hot encoding for 'region' column
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.20,
+    random_state=42
+)
 
-df_cleaned = pd.get_dummies(df_cleaned, columns=['region'], drop_first=True)
-df_cleaned = df_cleaned.astype(int, errors='ignore')
-# print(df_cleaned.head())
-
-#Feature Engineering 
-
-df_cleaned['bmi_category'] = pd.cut(df_cleaned['bmi'], bins=[0, 18.5, 24.9, 29.9, float('inf')], labels=['Underweight', 'Normal', 'Overweight', 'Obese'])
-
-# print(df_cleaned.head())
-
-df_cleaned = pd.get_dummies(df_cleaned, columns=['bmi_category'], drop_first=True)
-
-df_cleaned = df_cleaned.astype(int, errors='ignore')
-# print(df_cleaned.head())
-
-from sklearn.preprocessing import StandardScaler
-
-cols = ['age', 'bmi', 'children']
+# Scaling
 scaler = StandardScaler()
 
-df_cleaned[cols] = scaler.fit_transform(df_cleaned[cols])
+numeric_features = ['age', 'bmi', 'children']
 
-# print(df_cleaned.head())
+X_train = X_train.copy()
+X_test = X_test.copy()
 
-#Feature Extraction
+X_train[numeric_features] = scaler.fit_transform(
+    X_train[numeric_features]
+)
 
-from scipy.stats import pearsonr, chi2_contingency
+X_test[numeric_features] = scaler.transform(
+    X_test[numeric_features]
+)
 
-#Pearson Correlation Calculation
+# Model Training
+model = LinearRegression()
+model.fit(X_train, y_train)
 
-selected_features = ['age', 'bmi', 'children', 'is_female', 'is_smoker', 'region_northwest', 'region_southeast', 'region_southwest', 'bmi_category_Normal', 'bmi_category_Overweight', 'bmi_category_Obese']
+# Predictions
+y_pred = model.predict(X_test)
 
-correlations = {feature: pearsonr(df_cleaned[feature], df_cleaned['charges'])[0] for feature in selected_features}
+# Evaluation
+r2 = r2_score(y_test, y_pred)
 
-df_correlations = pd.DataFrame(list(correlations.items()), columns=['Feature', 'Pearson Correlation'])
-df_correlations = df_correlations.sort_values(by='Pearson Correlation', ascending=False)
-# print(df_correlations)
+n = X_test.shape[0]
+p = X_test.shape[1]
 
-cat_features = ['is_female', 'is_smoker', 'region_northwest', 'region_southeast', 'region_southwest', 'bmi_category_Normal', 'bmi_category_Overweight', 'bmi_category_Obese']
+adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
 
-alpha = 0.05
-df_cleaned['charges_bin'] = pd.qcut(df_cleaned['charges'], q=4, labels=False)
-chi2_results = {}
+print("\nModel Evaluation")
+print("----------------------")
+print("R-squared:", r2)
+print("Adjusted R-squared:", adj_r2)
+print("MAE:", mean_absolute_error(y_test, y_pred))
+print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
 
-for feature in cat_features:
-    contingency= pd.crosstab(df_cleaned[feature], df_cleaned['charges_bin'])
-    chi2_stat, p_val,_ ,_= chi2_contingency(contingency)
-    decision = 'Reject Null (Keep Feature)' if p_val < alpha else 'Accept Null (Drop Feature)'
-    chi2_results[feature] = {'Chi2_Statistic': chi2_stat, 'p_value': p_val, 'Decision': decision}
+print("\nCoefficients:", model.coef_)
+print("Intercept:", model.intercept_)
 
-chi2_df = pd.DataFrame(chi2_results).T
-chi2_df = chi2_df.sort_values(by='p_value')
-print(chi2_df)
+# Save model and scaler
+joblib.dump(model, 'insurance_model.pkl')
+joblib.dump(scaler, 'scaler.pkl')
 
-final_df = df_cleaned[['age','is_female','bmi','children','is_smoker','region_southeast','bmi_category_Obese','charges']]
-print(final_df.head())
+print("\nModel and scaler saved successfully!")
