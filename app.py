@@ -10,6 +10,81 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# Professional white UI styling
+st.markdown("""
+<style>
+
+/* Main application */
+.stApp {
+    background-color: #FFFFFF;
+}
+
+/* Main content */
+.block-container {
+    max-width: 1100px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+/* Main headings */
+h1, h2, h3 {
+    color: #172554 !important;
+    font-weight: 650 !important;
+}
+
+/* Normal text */
+p, label, .stMarkdown {
+    color: #334155;
+}
+
+/* Input fields */
+div[data-baseweb="input"] input {
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    color: #1E293B;
+}
+
+/* Select boxes */
+div[data-baseweb="select"] {
+    background-color: #FFFFFF;
+    border-radius: 8px;
+}
+
+/* Buttons */
+.stButton > button {
+    background-color: #2563EB;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem 1.5rem;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.stButton > button:hover {
+    background-color: #1D4ED8;
+    color: white;
+    border: none;
+}
+
+/* Prediction metric */
+div[data-testid="stMetric"] {
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+/* Dividers */
+hr {
+    border-color: #E2E8F0;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # Load model and scaler
 BASE_DIR = Path(__file__).parent
 
